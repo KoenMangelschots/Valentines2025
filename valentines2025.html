@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Valentine's Connections Puzzle</title>
+  <!-- A romantic font from Google -->
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+  <style>
+    /* --- Global Styles --- */
+    body {
+      background: linear-gradient(135deg, #ffd1dc, #fff0f5);
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 1.5em;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 1.5em;
+    }
+    h1 {
+      color: #c2185b;
+      font-family: 'Pacifico', cursive;
+      font-size: 3em;
+      margin-bottom: 0.5em;
+    }
+	h3 {
+      color: #555;
+      font-size: 2em;
+      font-weight: bold;
+    }
+    p {
+      color: #555;
+      font-size: 1.5em;
+    }
+    
+    /* --- Message Toast --- */
+    #message {
+      position: fixed;
+      top: 1.5em;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(194,24,91,0.9);
+      color: #fff;
+      padding: 1em 2em;
+      border-radius: 1em;
+      text-align: center;
+      font-size: 2em;
+      font-weight: bold;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 1000;
+    }
+    #message.show {
+      opacity: 1;
+    }
+    
+    /* --- Controls --- */
+    #controls {
+      text-align: center;
+      margin-bottom: 1.5em
+    }
+    button {
+      background-color: #ff6f91;
+      color: white;
+      border: none;
+      padding: 0.5em 1em;
+      font-size: 2em;
+	  font-weight: bold;
+      border-radius: 1em;
+      cursor: pointer;
+      margin: 0 0.5em;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #ff4c7c;
+    }
+    
+    /* --- Solved Groups --- */
+    #solvedContainer {
+      margin-bottom: 1.5em;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1em;
+      justify-content: center;
+    }
+    .solved-group {
+      background-color: #777; /* fallback */
+      border-radius: 2em;
+      color: #fff;
+      min-width: 21.5em;
+      padding: 2em;
+      transition: all 0.5s ease;
+    }
+    .solved-group h2 {
+      margin: 0 0 1em;
+      font-size: 2.5em;
+      text-align: center;
+    }
+    .solved-tiles {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5em;
+    }
+    .solved-tiles .tile {
+      background: rgba(255,255,255,0.3);
+      border: 0.25em solid rgba(255,255,255,0.5);
+      border-radius: 1em;
+      padding: 0.5em;
+      text-align: center;
+      color: #fff;
+      font-weight: bold;
+      /* Ensure flex centering for solved tiles as well */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    
+    /* --- Unsolved Tiles Grid --- */
+    #unsolvedContainer {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1em;
+      /* Fix the row height so each tile is consistent */
+      grid-auto-rows: 8em;
+    }
+    .tile {
+      background: #fff;
+      border: 0.25em solid #ccc;
+      border-radius: 1em;
+      padding-left: 0.5em;
+      padding-right: 0.5em;
+      padding-top: 0.25em;
+      padding-bottom: 0.25em;
+      font-size: 1em;
+      font-weight: bold;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+      position: relative;
+      /* Flex centering so text is always vertically centered */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .tile:hover {
+      transform: scale(1.05);
+    }
+    .tile.selected {
+	  border: 0.5em solid #ff6f91;
+      transform: scale(1.1);
+    }
+    /* Wrong guess shake animation (faster) */
+    .tile.error {
+      animation: shake 0.3s;
+    }
+    @keyframes shake {
+      0% { transform: translateX(0px); }
+      25% { transform: translateX(-4px); }
+      50% { transform: translateX(4px); }
+      75% { transform: translateX(-4px); }
+      100% { transform: translateX(0px); }
+    }
+    
+    /* Merge animation for correct group guess */
+    .tile.merge {
+      transition: transform 0.4s ease, opacity 0.4s ease;
+      transform: translateY(-150px);
+      opacity: 0;
+    }
+    
+    /* --- Congratulations Modal --- */
+    .modal {
+      display: none; /* Hidden by default */
+      position: fixed;
+      z-index: 1001;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.4);
+    }
+    .modal-content {
+      background-color: #fff;
+      margin: 15% auto;
+      padding: 1.5em;
+      border: 0.2em solid #888;
+      width: 80%;
+      text-align: center;
+      border-radius: 0.5em;
+    }
+    .modal-content p {
+      font-size: 2em;
+      font-weight: bold;
+      color: #c2185b;
+      margin: 0;
+    }
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 3em;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close:hover,
+    .close:focus {
+      color: #000;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Hana's Special Valentine's Day Connections Puzzle 🤍🖤</h1>
+    <p>
+      <b> Match groups of 4 tiles into their correct category until all 10 categories are found!</b>
+    </p>
+	<h3> Good luck 💝 </h3>
+  </header>
+  
+  <!-- Toast message container -->
+  <div id="message"></div>
+  
+  <div id="controls">
+    <button id="shuffleButton">Shuffle Unsolved Tiles</button>
+    <button id="deselectButton">Deselect All</button>
+  </div>
+  
+  <!-- Solved categories will appear here -->
+  <div id="solvedContainer"></div>
+  <hr>
+  <!-- Unsolved tiles grid -->
+  <div id="unsolvedContainer"></div>
+  
+  <!-- Congratulations Modal -->
+  <div id="congratsModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h1>Congratulations my beautiful girl!</h1>
+      <p>I am so so so proud of you 💕 I hope you enjoyed your little puzzle as much as I enjoy spending time with you each and every single day.<br>
+        I hope your day goes as easy and natural as loving you comes to me. I'll be right there waiting for you at the end of the day with open arms, because you're never ever alone 💞<br>You really mean the world to me Han and I cannot wait to marry you 💗
+      </p>
+      <br>
+      <p>
+        I love you so much Han 🤍🖤<br>Forever and always yours,<br>Koen
+      </p>
+    </div>
+  </div>
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      // --- Puzzle Data ---
+      const categories = [
+        { name: "Forever", words: ["Sarmadi", "Eeuwig", "Altijd", "Always"] },
+        { name: "Nicknames for my beautiful girl", words: ["Baby", "Han", "Habibti", "Gorgeous"] },
+        { name: "Places we've thought of visiting together", words: ["Australia", "New Zealand", "Luxor", "Norway"] },
+        { name: "Latest fixations of mine", words: ["Microscopy", "Guitar", "Astronomy", "Embroidery"] },
+        { name: "No, I ___ you more!", words: ["Want", "Desire", "Miss", "Crave"] },
+        { name: "Belgium's greatest accomplishments", words: ["Fries", "Waffles", "Chocolate", "Beer"] },
+        { name: "Egyptian food", words: ["Ta'ameya", "Koshari", "Feteer", "Mahshi"] },
+        { name: "People you hate", words: ["The French", "Americans", "Engineers", " Egyptian men"] },
+        { name: "You are my ___", words: ["Everything", "World", "Future", "Purpose"] }
+      ];
+      
+      // Assign each category a unique color with enough contrast for white text.
+      categories.forEach((cat, i) => {
+        const hue = i * 36; // 360°/10 = 36° apart
+        // Slightly darker, less saturated:
+        cat.color = `hsl(${hue}, 60%, 40%)`;
+      });
+      
+      // --- Create Tiles ---
+      let tiles = [];
+      let idCounter = 0;
+      categories.forEach((cat, catIndex) => {
+        cat.words.forEach(word => {
+          tiles.push({
+            id: idCounter++,
+            word: word,
+            category: catIndex,
+            solved: false
+          });
+        });
+      });
+      
+      // --- Helper: Shuffle Array (Fisher-Yates) ---
+      function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+      }
+      
+      // Shuffle the full tile list initially
+      shuffleArray(tiles);
+      
+      // --- Game State ---
+      let unsolvedTiles = tiles.slice(); // Copy of all tiles (unsolved)
+      let solvedGroups = {}; // Will store solved groups by category index
+      let currentSelection = []; // IDs of currently selected unsolved tiles
+      
+      // --- DOM References ---
+      const unsolvedContainer = document.getElementById("unsolvedContainer");
+      const solvedContainer = document.getElementById("solvedContainer");
+      const shuffleButton = document.getElementById("shuffleButton");
+      const deselectButton = document.getElementById("deselectButton");
+      const messageDiv = document.getElementById("message");
+      const congratsModal = document.getElementById("congratsModal");
+      const modalClose = document.querySelector(".modal .close");
+      
+      // --- Dynamic Text Resizing ---
+      // Fit text to the maximum possible font size that does not cause overflow
+      function fitText(tile) {
+        let minFont = 10;
+        let maxFont = 25;
+        let best = minFont;
+        while (minFont <= maxFont) {
+          let mid = Math.floor((minFont + maxFont) / 2);
+          tile.style.fontSize = mid/10 + 'em';
+          // Check if the content fits inside the tile (allowing natural wrapping)
+          if (tile.scrollWidth <= tile.clientWidth && tile.scrollHeight <= tile.clientHeight) {
+            best = mid;
+            minFont = mid + 1;
+          } else {
+            maxFont = mid - 1;
+          }
+        }
+        tile.style.fontSize = best/10 + 'em';
+      }
+      
+      // Apply fitText to all tiles in the document
+      function adjustTileText() {
+        document.querySelectorAll(".tile").forEach(tile => fitText(tile));
+      }
+      
+      // --- Render Functions ---
+      function renderUnsolved() {
+        unsolvedContainer.innerHTML = "";
+        unsolvedTiles.forEach(tile => {
+          const tileDiv = document.createElement("div");
+          tileDiv.classList.add("tile");
+          tileDiv.textContent = tile.word;
+          tileDiv.dataset.id = tile.id;
+          tileDiv.addEventListener("click", () => onTileClick(tile, tileDiv));
+          unsolvedContainer.appendChild(tileDiv);
+        });
+        adjustTileText();
+      }
+      
+      function renderSolved() {
+        solvedContainer.innerHTML = "";
+        // For each solved category, show its name and solved tiles
+        for (const catIndex in solvedGroups) {
+          const groupDiv = document.createElement("div");
+          groupDiv.classList.add("solved-group");
+          groupDiv.style.backgroundColor = categories[catIndex].color;
+          const title = document.createElement("h2");
+          title.textContent = categories[catIndex].name;
+          groupDiv.appendChild(title);
+          
+          const tilesDiv = document.createElement("div");
+          tilesDiv.classList.add("solved-tiles");
+          
+          solvedGroups[catIndex].forEach(tile => {
+            const tileDiv = document.createElement("div");
+            tileDiv.classList.add("tile");
+            tileDiv.textContent = tile.word;
+            tilesDiv.appendChild(tileDiv);
+          });
+          
+          groupDiv.appendChild(tilesDiv);
+          solvedContainer.appendChild(groupDiv);
+        }
+        adjustTileText();
+      }
+      
+      // Clear the current selection (and any error/selected styles)
+      function clearSelection() {
+        currentSelection = [];
+        const tileDivs = document.querySelectorAll("#unsolvedContainer .tile");
+        tileDivs.forEach(div => div.classList.remove("selected", "error"));
+      }
+      
+      // Show a toast message briefly
+      function showMessage(text) {
+        messageDiv.textContent = text;
+        messageDiv.classList.add("show");
+        setTimeout(() => {
+          messageDiv.classList.remove("show");
+        }, 1500);
+      }
+      
+      // Check if all categories have been solved and show the modal
+      function checkWin() {
+        if (Object.keys(solvedGroups).length === categories.length) {
+          congratsModal.style.display = "block";
+        }
+      }
+      
+      // --- Tile Click Handler ---
+      function onTileClick(tile, tileDiv) {
+        // (Should never happen that a solved tile is in the unsolved area.)
+        if (tile.solved) return;
+        
+        // Toggle selection
+        const index = currentSelection.indexOf(tile.id);
+        if (index > -1) {
+          currentSelection.splice(index, 1);
+          tileDiv.classList.remove("selected");
+        } else {
+          if (currentSelection.length < 4) {
+            currentSelection.push(tile.id);
+            tileDiv.classList.add("selected");
+          }
+        }
+        
+        // When 4 tiles are selected, check if they belong together
+        if (currentSelection.length === 4) {
+          const selectedTiles = unsolvedTiles.filter(t => currentSelection.includes(t.id));
+          const catId = selectedTiles[0].category;
+          const allSame = selectedTiles.every(t => t.category === catId);
+          
+          if (allSame) {
+            // Animate the merge effect for the selected tiles.
+            const tileDivs = Array.from(document.querySelectorAll("#unsolvedContainer .tile"))
+              .filter(div => currentSelection.includes(parseInt(div.dataset.id)));
+            tileDivs.forEach(div => div.classList.add("merge"));
+            
+            // After the merge animation, update state.
+            setTimeout(() => {
+              // Mark these tiles as solved.
+              selectedTiles.forEach(t => t.solved = true);
+              // Remove them from the unsolved list.
+              unsolvedTiles = unsolvedTiles.filter(t => !currentSelection.includes(t.id));
+              // Add them to the solved group.
+              solvedGroups[catId] = selectedTiles;
+              renderUnsolved();
+              renderSolved();
+              clearSelection();
+              // Check if all categories have been solved.
+              checkWin();
+            }, 400);
+          } else {
+            // Check for "3 correct, 1 wrong" scenario.
+            const counts = {};
+            selectedTiles.forEach(t => {
+              counts[t.category] = (counts[t.category] || 0) + 1;
+            });
+            if (Object.values(counts).includes(3)) {
+              showMessage("Close! You're one away baby!");
+            }
+            // Wrong selection: force error animation on each selected tile.
+            const tileDivs = document.querySelectorAll("#unsolvedContainer .tile");
+            tileDivs.forEach(div => {
+              if (currentSelection.includes(parseInt(div.dataset.id))) {
+                // Remove error, force reflow, then add error class
+                div.classList.remove("error");
+                void div.offsetWidth;
+                div.classList.add("error");
+              }
+            });
+          }
+        }
+      }
+      
+      // --- Shuffle Button ---
+      shuffleButton.addEventListener("click", () => {
+        clearSelection();
+        shuffleArray(unsolvedTiles);
+        renderUnsolved();
+      });
+      
+      // --- Deselect All Button ---
+      deselectButton.addEventListener("click", () => {
+        clearSelection();
+      });
+      
+      // --- Modal Close Functionality ---
+      modalClose.addEventListener("click", () => {
+        congratsModal.style.display = "none";
+      });
+      window.addEventListener("click", (event) => {
+        if (event.target === congratsModal) {
+          congratsModal.style.display = "none";
+        }
+      });
+      
+      // --- Initial Render ---
+      renderUnsolved();
+    });
+  </script>
+</body>
+</html>
